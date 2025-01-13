@@ -20,12 +20,13 @@ OFFSET = 0
 
 # Initalise the WS2812 / NeoPixel™ LEDs
 led_strip = plasma.WS2812(
-    NUM_LEDS, 0, 0, plasma_stick.DAT, color_order=plasma.COLOR_ORDER_RGB
+    NUM_LEDS, 0, 0, plasma_stick.DAT, color_order=plasma.COLOR_ORDER_GRB
 )
 led_strip.start()
 
 # Set a red highlight colour at 50% brightness, HSV
-HIGHLIGHT = (0, 1.0, 0.5)
+HIGHLIGHT_RED = (0, 1.0, 0.5)
+HIGHLIGHT_BLUE = (0.66, 1.0, 0.5)
 
 def status_handler(mode, status, ip):
     """Report network status while connecting to wifi."""
@@ -87,6 +88,7 @@ def get_train_times_in_secs_since_epoch(station_code, platform_num):
 
     Returns:
         List of train times in seconds since the epoch.
+        Boolean status flag
 
     Returning seconds because we have problems passing tuples between functions,
     then into time.mktime(); lots of "'tuple'object has no attribute 'mktime'" errors.
@@ -124,11 +126,11 @@ def get_train_times_in_secs_since_epoch(station_code, platform_num):
             # Append the train time to the list
             train_times.append(train_time_secs)
 
-        return sorted(train_times)
+        return sorted(train_times), True
 
     except Exception as e:
         print(f"Error fetching departure data: {e}")
-        return []
+        return [], False
 
 
 def get_next_train_waits(current_time_in_seconds, station, platform):
@@ -141,15 +143,16 @@ def get_next_train_waits(current_time_in_seconds, station, platform):
 
     Returns:
         A list of the next train times in seconds from now.
+        Update status boolean
     """
 
     # Get the train times
-    train_times = get_train_times_in_secs_since_epoch(station, platform)
+    train_times, status = get_train_times_in_secs_since_epoch(station, platform)
 
     # Calculate the difference between the current time and the train times
     train_times_diff = [time - current_time_in_seconds for time in train_times]
 
-    return train_times_diff
+    return train_times_diff, status
 
 
 def seconds_to_position(next_train_waits_in_seconds, current_minutes, num_leds = NUM_LEDS, offset = OFFSET):
@@ -222,36 +225,48 @@ def update_display(current_time_in_seconds, current_time_minutes, station_code, 
     print(f"Current time in seconds: {current_time_in_seconds}")
     print(f"Current time in minutes: {current_time_minutes}")
 
-    # train_times = get_train_times_in_secs_since_epoch(station_code, 1)
-    # print(f"Next train times: {train_times}")
-
     # Get the next train times
-    train_waits_in_seconds = get_next_train_waits(current_time_in_seconds, station_code, 1)
+    train_waits_in_seconds, status = get_next_train_waits(current_time_in_seconds, station_code, 1)
     print("Got next train waits")
 
-    # calculate the wait times in minutes, and print
-    list_of_minutes = []
-    list_of_positions = []
-    for wait_seconds in train_waits_in_seconds:
-        wait_minutes = wait_seconds // 60
-        # reject train if more than an hour away
-        if wait_minutes > 60:
-            continue
-        arrival_time = (current_time_minutes + (wait_seconds // 60)) % 60
-        list_of_minutes.append(arrival_time)
-        list_of_positions.append(minute_to_position(arrival_time))
-        print(f"Next train in {wait_minutes} minutes, arrives at {arrival_time} minutes past the hour, position {minute_to_position(arrival_time)}")
+    # If status is True, update the display
+    if status:
+        # calculate the wait times in minutes, and print
+        list_of_minutes = []
+        list_of_positions = []
+        for wait_seconds in train_waits_in_seconds:
+            wait_minutes = wait_seconds // 60
+            arrival_time = (current_time_minutes + (wait_seconds // 60)) % 60
+            # reject train if more than 57 minutes away
+            # (57 because we have diffused LEDs, so it can look like we've just missed
+            # a train when it's actually an hour away. Better to hide it for a few minutes
+            # until the hand has move aside..)
+            if wait_minutes > 57:
+                print(f"Skipping train {wait_minutes} minutes away, arrives at {arrival_time} minutes past the hour")
+                continue
+            list_of_minutes.append(arrival_time)
+            list_of_positions.append(minute_to_position(arrival_time))
+            print(f"Train in {wait_minutes} minutes, arrives at {arrival_time} minutes past the hour, position {minute_to_position(arrival_time)}")
 
+        # Update the LED strip.
+        for i in range(NUM_LEDS):
+            # Set pixel to black, unless position is in list_of_positions,
+            # in which case set to HIGHLIGHT.
+            if i not in list_of_positions:
+                led_strip.set_rgb(i, 0, 0, 0)
+            else:
+                led_strip.set_hsv(i, *HIGHLIGHT_RED)
 
-    # Update the LED strip.
-    for i in range(NUM_LEDS):
-        # Set pixel to black, unless position is in list_of_positions,
-        # in which case set to HIGHLIGHT.
-        if i not in list_of_positions:
-            led_strip.set_rgb(i, 0, 0, 0)
-        else:
-            led_strip.set_hsv(i, *HIGHLIGHT)
-
+    else:
+        print("No train data available.")
+        # Change the LED strip to display the previous data, but in blue.
+        for i in range(NUM_LEDS):
+            # Test the pixel colour at this position
+            if led_strip.get(i) == "(155, 0, 0, 0)":
+                continue
+            else:
+                # Pixel wasn't black, so change it to blue
+                led_strip.set_hsv(i, *HIGHLIGHT_BLUE)
 
 
 if __name__ == "__main__":
@@ -269,14 +284,16 @@ if __name__ == "__main__":
 
     # Get the station mappings
     # station_mappings = get_station_mappings()
-
     # Get the platform information for a station
     # station_code = station_mappings["Whitley Bay"]
-    station_code = "WTL"
-    platform_number = 1
     # print(f"Station code for Whitley Bay: {station_code}")
     # platform_info = get_platform_info(station_code)
     # print(f"Platform information for Whitley Bay: {platform_info}")
+
+    # Hard-code the station code and platform number
+    # We don't need to do an API lookup, we're not moving that quickly
+    station_code = "WTL"
+    platform_number = 1
 
     while True:
         # Update the display
@@ -285,5 +302,5 @@ if __name__ == "__main__":
         current_time_minutes = current_time[4]
         update_display(current_time_in_seconds, current_time_minutes, station_code, platform_number)
 
-        # Sleep for a minute
+        # Sleep for two minutes
         time.sleep(120)
