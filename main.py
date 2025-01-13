@@ -131,152 +131,82 @@ def get_train_times_in_secs_since_epoch(station_code, platform_num):
         return []
 
 
-def get_train_times(station_code, platform_num):
-    """TODO: REMOVE THIS FUNCTION AND USE get_train_times_in_secs_since_epoch() INSTEAD"""
-    try:
-        url = f"https://metro-rti.nexus.org.uk/api/times/{station_code}/{platform_num}"
-        response = urequests.get(url)
-        train_data = response.json()
-
-        train_times = []
-        for train in train_data:
-            timestamp = train["actualPredictedTime"]
-
-            # Split into date and time parts
-            date_part, time_part = timestamp.split('T')
-
-            # print(f"Date part: {date_part}")
-            # print(f"Time part: {time_part}")
-
-            # Split the date part into year, month, day
-            year, month, day = map(int, date_part.split('-'))
-            # print(f"Year: {year}, Month: {month}, Day: {day}")
-
-            # Split the time part into hour, minute, second
-            time_part = time_part.split('.')[0]
-            hour, minute, second = map(int, time_part.split(':'))
-            # print(f"Hour: {hour}, Minute: {minute}, Second: {second}")
-
-            day_of_week = zeller_day(year, month, day)
-
-            # Now assemble the date and time parts into a tuple,
-            # matching the field order of rtc.datetime()
-            train_time = (year, month, day, day_of_week, hour, minute, second, 0)
-
-            train_time_secs = time.mktime((year, month, day, hour, minute, second, 0, 0))
-
-            print(f">>> Train time in seconds: {train_time_secs}")
-
-            # print(f"Train time:   {train_time}")
-
-            # Append the train time to the list
-            train_times.append(train_time)
-
-        return sorted(train_times)
-
-    except Exception as e:
-        print(f"Error fetching departure data: {e}")
-        return []
-
-
-def zeller_day(year, month, day):
-    """Zeller's Congruence: calculate day of the week.
-    Returns 0=Monday through 6=Sunday
-    """
-    if month < 3:
-        month += 12
-        year -= 1
-
-    k = year % 100
-    j = year // 100
-
-    day_of_week = (
-        day
-        + ((13 * (month + 1)) // 5)
-        + k
-        + (k // 4)
-        + (j // 4)
-        - (2 * j)
-    ) % 7
-
-    # Convert from Zeller's (0=Saturday) to ISO (0=Monday)
-    return (day_of_week + 5) % 7
-
-def time_to_8_tuple_time(time):
-    """Convert a time tuple to an 8-tuple time tuple.
+def get_next_train_waits(current_time_in_seconds, station, platform):
+    """Return a list of the next train times in seconds from now.
 
     Args:
-        time: Tuple of (year, month, day, day_of_week, hour, minute, second, 0)
+        current_time_in_seconds: The current time.
+        station: The station code.
+        platform: The platform number.
 
     Returns:
-        time: Tuple of (year, month, mday, hour, minute, second, weekday, yearday)
+        A list of the next train times in seconds from now.
     """
 
-    year, month, day, day_of_week, hour, minute, second, fraction = time
+    # Get the train times
+    train_times = get_train_times_in_secs_since_epoch(station, platform)
 
-    # Calculate days in each month, accounting for leap years
-    days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    # Calculate the difference between the current time and the train times
+    train_times_diff = [time - current_time_in_seconds for time in train_times]
 
-    # Adjust February for leap years
-    if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0):
-        days_in_month[1] = 29
-
-    # Calculate yearday by summing completed months plus current month days
-    yearday = sum(days_in_month[:month-1]) + day
-
-    # Make sure everything is an int
-    year = int(year)
-    month = int(month)
-    day = int(day)
-    hour = int(hour)
-    minute = int(minute)
-    second = int(second)
-    day_of_week = int(day_of_week)
-    yearday = int(yearday)
-
-    t_return = (year, month, day, hour, minute, second, 0, 0)
-    print(f"Time tuple: {t_return}")
-    # Convert to seconds since epoch
-    t_secs = time.mktime(t_return)
-    print(f"Time in seconds: {t_secs}")
-
-    # Return 8-tuple in required format
-    # return (year, month, day, hour, minute, second, day_of_week, yearday)
-    # return (year, month, day, hour, minute, second, 0, 0)
-    return t_return
+    return train_times_diff
 
 
+def seconds_to_position(next_train_waits_in_seconds, current_minutes, num_leds = NUM_LEDS, offset = OFFSET):
+    """Convert a list of seconds to a list of positions on the clock face.
 
-def time_difference(time1, time2):
-    """Calculate the difference in seconds between two times.
+    Ignore any trains more than an hour from now.
 
     Args:
-        time1: Tuple of (year, month, day, day_of_week, hour, minute, second, 0)
-        time2: Tuple of (year, month, day, day_of_week, hour, minute, second, 0)
+        next_train_waits_in_seconds: (tuple) list of seconds until the next train.
+        current_minutes: The current minute.
+        num_leds: The number of LEDs on the clock face.
+        offset: The offset of the LEDs.
 
     Returns:
-        Time difference in seconds
+        A list of positions on the clock face.
     """
 
-    print(f"Time1 orig: {time1}")
-    time1 = time_to_8_tuple_time(time1)
-    print(f"Time1 proc: {time1}")
-    # print(f"Time2 orig: {time2}")
-    # time2 = time_to_8_tuple_time(time2)
-    # print(f"Time2 proc: {time2}")
+    positions = []
 
-    t1_year, t1_month, t1_day, t1_hour, t1_minute, t1_second, t1_weekday, t1_yearday = time1
+    for train_wait in next_train_waits_in_seconds:
+        if train_wait < 3600:
+            # Calculate the position
+            position = (current_minutes + (train_wait // 60) + offset) % num_leds
+            positions.append(position)
 
-    t1 = (t1_year, t1_month, t1_day, t1_hour, t1_minute, t1_second, 0, 0)
-    # Convert the times to seconds since the epoch
-    time1_seconds = time.mktime(time1)
-    # time1_seconds = time.mktime(time1)
-    print(f"Time1 seconds: {time1_seconds}")
-    # time2_seconds = time.mktime(time2)
+    return sorted(positions)
 
-    # print(f"Time2 seconds: {time2_seconds}")
 
-    # return time1_seconds - time2_seconds
+def update_display(current_time_in_seconds, current_time_minutes, station_code, platform_num):
+    """Main function: retrieve train times and update the LED display.
+
+    Args:
+        current_time_in_seconds: The current time in seconds.
+        current_time_minutes: The current minute.
+        station_code: The station code.
+        platform_num: The platform number
+
+    Returns:
+        None
+    """
+
+    print(f"Current time in seconds: {current_time_in_seconds}")
+
+    # train_times = get_train_times_in_secs_since_epoch(station_code, 1)
+    # print(f"Next train times: {train_times}")
+
+    # Get the next train times
+    train_times = get_next_train_waits(current_time_in_seconds, station_code, 1)
+
+    # for time in train_times:
+    #     print(f"Time difference: {time}")
+
+    # Convert the train times to positions
+    positions = seconds_to_position(train_times, current_time[5])
+    print(f"LED positions: {positions}")
+
+
 
 
 
@@ -303,18 +233,9 @@ if __name__ == "__main__":
     # platform_info = get_platform_info(station_code)
     # print(f"Platform information for Whitley Bay: {platform_info}")
 
-    # print the current time
-    # current_time = rtc.datetime()
+    # Update the display
     current_time = time.localtime()
-    # (year, month, day, day_of_week, hour, minute, second, fraction) = current_time
-    # current_time = (year, month, day, day_of_week, hour, minute, second, 0)
-    print(f"Current time: {current_time}")
     current_time_in_seconds = time.mktime(current_time)
-    print(f"Current time in seconds: {current_time_in_seconds}")
-
-    train_times = get_train_times_in_secs_since_epoch(station_code, 1)
-    print(f"Next train times: {train_times}")
-
-    for time in train_times:
-        print(f"Time difference: {time - current_time_in_seconds}")
+    current_time_minutes = current_time[5]
+    update_display(current_time_in_seconds, current_time_minutes, station_code, 1)
 
