@@ -155,36 +155,6 @@ def get_next_train_waits(current_time_in_seconds, station, platform):
     return train_times_diff, status
 
 
-def seconds_to_position(next_train_waits_in_seconds, current_minutes, num_leds = NUM_LEDS, offset = OFFSET):
-    """Convert a list of seconds to a list of positions on the clock face.
-
-    Ignore any trains more than an hour from now.
-
-    Args:
-        next_train_waits_in_seconds: (tuple) list of seconds until the next train.
-        current_minutes: The current minute.
-        num_leds: The number of LEDs on the clock face.
-        offset: The offset of the LEDs.
-
-    Returns:
-        A list of positions on the clock face.
-    """
-
-    positions = []
-
-    for train_wait in next_train_waits_in_seconds:
-        if train_wait < 3600:
-            # Calculate the position
-            # current_minutes is 60 to the hour
-            # position data is num_leds to the hour
-            current_minutes_led = (current_minutes * num_leds) // 60
-            train_wait_led = (train_wait // 60) % num_leds
-            position = (current_minutes_led + train_wait_led + offset) % num_leds
-            positions.append(position)
-
-
-    return sorted(positions)
-
 def minute_to_position(minute, num_leds = NUM_LEDS, offset = OFFSET):
     """Convert a minute on the clock to a position on the LED string.
 
@@ -203,9 +173,6 @@ def minute_to_position(minute, num_leds = NUM_LEDS, offset = OFFSET):
     position = (position + offset) % num_leds
 
     return position
-
-
-
 
 
 def update_display(current_time_in_seconds, current_time_minutes, station_code, platform_num, led_strip = led_strip):
@@ -242,7 +209,7 @@ def update_display(current_time_in_seconds, current_time_minutes, station_code, 
             # a train when it's actually an hour away. Better to hide it for a few minutes
             # until the hand has move aside..)
             if wait_minutes > 57:
-                print(f"Skipping train {wait_minutes} minutes away, arrives at {arrival_time} minutes past the hour")
+                print(f"Skipping train {wait_minutes} in mins, arrives at {arrival_time} minutes past the hour")
                 continue
             list_of_minutes.append(arrival_time)
             list_of_positions.append(minute_to_position(arrival_time))
