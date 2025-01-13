@@ -239,25 +239,14 @@ def update_display(current_time_in_seconds, current_time_minutes, station_code, 
         list_of_positions.append(minute_to_position(arrival_time))
         print(f"Next train in {wait_minutes} minutes, arrives at {arrival_time} minutes past the hour, position {minute_to_position(arrival_time)}")
 
-
-    # for time in train_times:
-    #     print(f"Time difference: {time}")
-
-    # Convert the train times to positions
-    # positions = seconds_to_position(train_waits_in_seconds, current_time[5])
-    # print(f"LED positions: {positions}")
-
     # Update the LED strip.
-    # Set all pixels to black, then set the next train times to red.
     for i in range(NUM_LEDS):
-        led_strip.set_rgb(i, 0, 0, 0)
-
-    for minute in list_of_minutes:
-        position = minute_to_position(minute)
-        # print(f"Minute {minute} at position {position}")
-        led_strip.set_hsv(position, *HIGHLIGHT)
-
-    time.sleep(10)
+        # Set pixel to black, unless position is in list_of_positions,
+        # in which case set to HIGHLIGHT.
+        if i not in list_of_positions:
+            led_strip.set_rgb(i, 0, 0, 0)
+        else:
+            led_strip.set_hsv(i, *HIGHLIGHT)
 
 
 
@@ -280,6 +269,7 @@ if __name__ == "__main__":
     # Get the platform information for a station
     # station_code = station_mappings["Whitley Bay"]
     station_code = "WTL"
+    platform_number = 1
     # print(f"Station code for Whitley Bay: {station_code}")
     # platform_info = get_platform_info(station_code)
     # print(f"Platform information for Whitley Bay: {platform_info}")
@@ -289,7 +279,7 @@ if __name__ == "__main__":
         current_time = time.localtime()
         current_time_in_seconds = time.mktime(current_time)
         current_time_minutes = current_time[4]
-        update_display(current_time_in_seconds, current_time_minutes, station_code, 1)
+        update_display(current_time_in_seconds, current_time_minutes, station_code, platform_number)
 
         # Sleep for a minute
         time.sleep(60)
