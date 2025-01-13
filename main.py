@@ -234,10 +234,14 @@ def update_display(current_time_in_seconds, current_time_minutes, station_code, 
     list_of_positions = []
     for wait_seconds in train_waits_in_seconds:
         wait_minutes = wait_seconds // 60
+        # reject train if more than an hour away
+        if wait_minutes > 60:
+            continue
         arrival_time = (current_time_minutes + (wait_seconds // 60)) % 60
         list_of_minutes.append(arrival_time)
         list_of_positions.append(minute_to_position(arrival_time))
         print(f"Next train in {wait_minutes} minutes, arrives at {arrival_time} minutes past the hour, position {minute_to_position(arrival_time)}")
+
 
     # Update the LED strip.
     for i in range(NUM_LEDS):
@@ -282,4 +286,4 @@ if __name__ == "__main__":
         update_display(current_time_in_seconds, current_time_minutes, station_code, platform_number)
 
         # Sleep for a minute
-        time.sleep(60)
+        time.sleep(120)
