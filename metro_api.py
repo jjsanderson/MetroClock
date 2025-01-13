@@ -1,4 +1,12 @@
-import urequests# Dictionary for station names
+import urequests
+from network_manager import NetworkManager
+from machine import RTC
+import ntptime
+import time
+import WIFI_CONFIG
+import json
+import uasyncio
+
 
 def get_station_mapping():
     """Retrieve and parse station mappings from API query."""
