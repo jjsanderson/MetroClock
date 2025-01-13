@@ -172,41 +172,92 @@ def seconds_to_position(next_train_waits_in_seconds, current_minutes, num_leds =
     for train_wait in next_train_waits_in_seconds:
         if train_wait < 3600:
             # Calculate the position
-            position = (current_minutes + (train_wait // 60) + offset) % num_leds
+            # current_minutes is 60 to the hour
+            # position data is num_leds to the hour
+            current_minutes_led = (current_minutes * num_leds) // 60
+            train_wait_led = (train_wait // 60) % num_leds
+            position = (current_minutes_led + train_wait_led + offset) % num_leds
             positions.append(position)
+
 
     return sorted(positions)
 
+def minute_to_position(minute, num_leds = NUM_LEDS, offset = OFFSET):
+    """Convert a minute on the clock to a position on the LED string.
 
-def update_display(current_time_in_seconds, current_time_minutes, station_code, platform_num):
+    Args:
+        minute: The minute to convert.
+        num_leds: The number of LEDs on the clock face.
+        offset: The offset of the LEDs.
+
+    Returns:
+        The position on the LED string.
+    """
+
+    angle_degree = minute / 60
+    position = int(angle_degree * num_leds) % num_leds
+    # Apply offset
+    position = (position + offset) % num_leds
+
+    return position
+
+
+
+
+
+def update_display(current_time_in_seconds, current_time_minutes, station_code, platform_num, led_strip = led_strip):
     """Main function: retrieve train times and update the LED display.
 
     Args:
         current_time_in_seconds: The current time in seconds.
         current_time_minutes: The current minute.
         station_code: The station code.
-        platform_num: The platform number
+        platform_num: The platform number.
+        led_strip: The LED strip object.
 
     Returns:
         None
     """
 
     print(f"Current time in seconds: {current_time_in_seconds}")
+    print(f"Current time in minutes: {current_time_minutes}")
 
     # train_times = get_train_times_in_secs_since_epoch(station_code, 1)
     # print(f"Next train times: {train_times}")
 
     # Get the next train times
-    train_times = get_next_train_waits(current_time_in_seconds, station_code, 1)
+    train_waits_in_seconds = get_next_train_waits(current_time_in_seconds, station_code, 1)
+    print("Got next train waits")
+
+    # calculate the wait times in minutes, and print
+    list_of_minutes = []
+    list_of_positions = []
+    for wait_seconds in train_waits_in_seconds:
+        wait_minutes = wait_seconds // 60
+        arrival_time = (current_time_minutes + (wait_seconds // 60)) % 60
+        list_of_minutes.append(arrival_time)
+        list_of_positions.append(minute_to_position(arrival_time))
+        print(f"Next train in {wait_minutes} minutes, arrives at {arrival_time} minutes past the hour, position {minute_to_position(arrival_time)}")
+
 
     # for time in train_times:
     #     print(f"Time difference: {time}")
 
     # Convert the train times to positions
-    positions = seconds_to_position(train_times, current_time[5])
-    print(f"LED positions: {positions}")
+    # positions = seconds_to_position(train_waits_in_seconds, current_time[5])
+    # print(f"LED positions: {positions}")
 
+    # Update the LED strip.
+    # Set all pixels to black, then set the next train times to red.
+    for i in range(NUM_LEDS):
+        led_strip.set_rgb(i, 0, 0, 0)
 
+    for minute in list_of_minutes:
+        position = minute_to_position(minute)
+        # print(f"Minute {minute} at position {position}")
+        led_strip.set_hsv(position, *HIGHLIGHT)
+
+    time.sleep(10)
 
 
 
@@ -233,9 +284,12 @@ if __name__ == "__main__":
     # platform_info = get_platform_info(station_code)
     # print(f"Platform information for Whitley Bay: {platform_info}")
 
-    # Update the display
-    current_time = time.localtime()
-    current_time_in_seconds = time.mktime(current_time)
-    current_time_minutes = current_time[5]
-    update_display(current_time_in_seconds, current_time_minutes, station_code, 1)
+    while True:
+        # Update the display
+        current_time = time.localtime()
+        current_time_in_seconds = time.mktime(current_time)
+        current_time_minutes = current_time[4]
+        update_display(current_time_in_seconds, current_time_minutes, station_code, 1)
 
+        # Sleep for a minute
+        time.sleep(60)
