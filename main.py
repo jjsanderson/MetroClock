@@ -16,7 +16,7 @@ NUM_LEDS = 96
 # Updates per second
 UPDATES = 60
 # Is the LED strip rotated?
-OFFSET = 0
+OFFSET = 1
 
 # Initalise the WS2812 / NeoPixel™ LEDs
 led_strip = plasma.WS2812(
@@ -209,7 +209,7 @@ def update_display(current_time_in_seconds, current_time_minutes, station_code, 
             # a train when it's actually an hour away. Better to hide it for a few minutes
             # until the hand has move aside..)
             if wait_minutes > 57:
-                print(f"Skipping train {wait_minutes} in mins, arrives at {arrival_time} minutes past the hour")
+                print(f"Skip train in {wait_minutes} mins, arrives at {arrival_time} minutes past the hour")
                 continue
             list_of_minutes.append(arrival_time)
             list_of_positions.append(minute_to_position(arrival_time))
