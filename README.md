@@ -1,6 +1,8 @@
 # MetroClock
  Neopixels to track Tyne & Wear Metro train times.
 
+![](IMG_7892.jpeg)
+
 ## Why?
 
 The Tyne & Wear Metro is a theoretically wonderful service, however at 'roughly every 12 minutes' it's not a frequent service by light rail standards. At the time of writing all but one train on the network dates from when the system was built, in the 1980s; train reliability is very poor. Consequently, it's far from unusual to find a 30-minute gap in service.
