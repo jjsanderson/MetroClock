@@ -44,7 +44,7 @@ Wow, this seems to be a disaster area. Certainly, I spent far too long trying to
 
 The Pi Pico W has an RTC, which can be (and, here, is) set to sync to [waves hands vaguely] something, once a network connection is made. Converting times is not, however, as straightforward as one expects.
 
-`RTC` reports time tuples in a sequence passed down from some specific hardware implementation some times ago; the internal `time.now()` call returns a different a similar tuple but in a different order; `datetime` isn't available; converting tuples using `mktime()` seems to fail if the tuple is passed between functions first (?!). Ugh.
+`RTC` reports time tuples in a sequence passed down from some specific hardware implementation some times ago; the internal `time.now()` call returns a similar tuple but in a different order; `datetime` isn't available; converting tuples using `mktime()` seems to fail if the tuple is passed between functions first (?!). Ugh.
 
 My solution here is to:
 
