@@ -15,7 +15,7 @@ While the Metro does publish a mobile app with current train updates, it's fairl
 
 Why 57 minutes? Because the pixel strip I'm using is edge-lit and heavily diffused. It's not *completely* clear where the light is centred (which is fine - uncertainty around train time is represented by physical fuzziness. Also: oooh pretty). If a train appears close to the minute hand it's not clear if that's a train that's about to depart, or one that's an hour from now. Simply removing the far-future trains close to the current position of the minute hand removes the ambiguity.
 
-If an update fails, the train dots are drawn in blue rather than red. At least, they should be. The API was up and down when I was building this, but it hasn't broken since I built out the error handling. I have no idea if that code actually works.
+If an update fails, the train dots are drawn in blue rather than red. At least, they should be. The API was up and down when I was building this, but it hasn't broken since I built out the error handling. I have no idea if that code actually works. Looking at it again, I'm pretty sure it'll do outrageous things on a second failed update, at the very least.
 
 The URL we're working off:
 
